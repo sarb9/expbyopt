@@ -1,0 +1,453 @@
+\documentclass{article}
+
+%\usepackage{jmlr2e}
+
+\textwidth=125mm
+\textheight=200mm
+\linespread{1.04}
+
+
+\title{\textsc{ExpByOpt for Convex Bandits}}
+% \author{Tor Lattimore}
+%\editor{}
+
+%\jmlrheading{1}{2000}{1-48}{4/00}{10/00}{meila00a}{Marina Meil\u{a} and Michael I. Jordan}
+%\jmlrheading{}{}{}{5/21}{}{}{Lattimore}
+
+%\ShortHeadings{Minimax Regret for Bandit Convex Optimisation of Ridge Functions}{Lattimore}
+%\firstpageno{1}
+
+
+\usepackage{xcolor}
+\definecolor{dkblue}{cmyk}{1,.54,.04,.19} 
+
+\usepackage{hyperref} % add backlinks to the end of bibliography items
+
+\hypersetup{
+  bookmarks=true,         % show bookmarks bar?
+    unicode=false,          % non-Latin characters in AcrobatÕs bookmarks
+    pdftoolbar=true,        % show AcrobatÕs toolbar?
+    pdfmenubar=true,        % show AcrobatÕs menu?
+    pdffitwindow=false,     % window fit to page when opened
+    pdfstartview={FitH},    % fits the width of the page to the window
+    pdftitle={Minimax Regret for Bandit Convex Optimisation of Ridge Functions},    % title
+    pdfauthor={Tor Lattimore},     % author
+    pdfsubject={Bandits},   % subject of the document
+    pdfcreator={pdflatex},   % creator of the document
+    pdfproducer={Producer}, % producer of the document
+    pdfkeywords={bandits} {online learning} {machine learning}, % list of keywords
+    pdfnewwindow=true,      % links in new window
+    colorlinks=true,        % false: boxed links; true: colored links
+    linkcolor=black,       % color of internal links
+    citecolor=dkblue,       % color of links to bibliography
+    filecolor=dkblue,       % color of file links
+    urlcolor=dkblue,        % color of external links
+}
+
+
+\usepackage{nicefrac}
+\usepackage{floatrow}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage{amssymb}
+\usepackage[plain]{algorithm}
+\lstset{emph={try,catch,throw,def,or,to,for,then,end,for,if,args,else,return},emphstyle=\color{blue!100!black}\textbf}
+\lstset{mathescape=true,escapechar=\&,numbers=left,xleftmargin=3mm,linewidth=0.47\textwidth,framextopmargin=0pt,framexbottommargin=0pt,aboveskip=-1pt,belowskip=-1pt}
+\usepackage{mdframed}
+\usepackage{bm}
+\usepackage[capitalise]{cleveref}
+\usepackage[bf]{caption}
+\usepackage{graphicx}
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{optprob}[theorem]{Optimisation Problem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{claim}[theorem]{Claim}
+\newcommand{\ceil}[1]{\left\lceil #1 \right\rceil}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{remark}[theorem]{Remark}
+\theoremstyle{remark}
+
+
+\usepackage{natbib}
+
+\newcommand{\R}{\mathbb R}
+
+\newcommand{\argmin}{\operatornamewithlimits{arg\,min}}
+\newcommand{\argmax}{\operatornamewithlimits{arg\,max}}
+\newcommand{\ip}[1]{\langle #1 \rangle}
+\newcommand{\Reg}{\mathfrak{R}}
+\newcommand{\BReg}{\mathfrak{BR}}
+\newcommand{\norm}[1]{\Vert #1 \Vert}
+\newcommand{\E}{\mathbb E}
+\newcommand{\Var}{\mathbb V}
+\newcommand{\cE}{\mathcal E}
+\newcommand{\cK}{\mathcal K}
+\newcommand{\cH}{\mathcal H}
+\newcommand{\cF}{\mathcal F}
+\newcommand{\cO}{\mathcal O}
+\newcommand{\cS}{\mathcal S}
+\newcommand{\cC}{\mathcal C}
+\newcommand{\cL}{\mathcal L}
+\newcommand{\cG}{\mathcal G}
+\newcommand{\BS}{\mathbb S}
+\newcommand{\zeros}{ \bm 0}
+\newcommand{\bbP}{\mathbb P}
+\newcommand{\polylog}{\operatorname{polylog}}
+\newcommand{\const}{\operatorname{const}}
+\newcommand{\interior}{\operatorname{int}}
+\newcommand{\conv}{\operatorname{conv}}
+\newcommand{\diam}{\operatorname{diam}}
+\renewcommand{\d}[1]{\operatorname{d}\!#1}
+\newcommand{\abovelabel}[1]{\stackrel{\raisebox{0.5mm}{\textrm{\tiny \color{red} #1}}}}
+
+\theoremstyle{definition}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+\begin{document}
+
+
+\maketitle
+
+% \begin{abstract}
+% \end{abstract}
+
+\section{Setup and Notation}
+Reuse the notation from \cite{lattimore2024bandit}.
+\begin{assumption}
+    The following hold:
+    \begin{itemize}
+        \item The losses are in $\cF_b$.
+        \item There is no noise so that $Y_t = f_t(X_t)$.
+    \end{itemize}
+\end{assumption}
+
+\begin{assumption}
+    $\cC$ is finite subset of $K$ such that:
+    \begin{itemize}
+        \item $\log(\cC) \leq \tilde\cO(d)$.
+        \item For all $f \in \cF_b$ there exists $x \in \cC$ such that $f(x) \leq \inf_{x' \in K} f(x') + \frac{1}{n}$.
+    \end{itemize}
+\end{assumption}
+
+\section{Exponential Weights with Importance Sampling}
+Let $(\hat{s}_t)_{t=1}^n:\cC \to \R$ be a sequence of functions and
+\begin{align}
+    q_t(x) & = \frac{\exp(-\eta \sum_{u=1}^{t-1} \hat{s}_u(x))}{\sum_{y \in \cC} \exp(-\eta \sum_{u=1}^{t-1} \hat{s}_u(y))}, \quad x \in \cC\,.
+\end{align}
+
+The following theorem gives a bound on the regret of the exponential weights algorithm in the original setting.
+\textit{Here, it's better to think of $\hat{s}_t$ as the losses observed at time $t$ and not the estimates of the losses.}
+\begin{theorem}[\cite{lattimore2024bandit}, Theorem 8.11]
+    \label{thm:exp-imp}
+    For any $y \in \cC$ we have
+    \begin{align*}
+        \sum_{t=1}^{n}\langle q_t, \hat{s}_t \rangle - \hat{s}_t(y) \leq \frac{\log(|\cC|)}{\eta} + \frac{1}{\eta} \sum_{t=1}^{n} \cS_t(\eta\hat{s}_t)\,,
+    \end{align*}
+    where $\cS_t(u) = D_{R^\star}(R'(q_t)- u , R'(q_t))$.
+\end{theorem}
+
+The following theorem applies to the setting when $\langle f_t, X_t \rangle$ is observed and not $f_t$.
+The idea is to use importance sampling and estimates $\hat{s}_t$ to compute the losses.
+\begin{algorithm}[h!]
+    \begin{minipage}{12cm}
+        \begin{mdframed}
+            \begin{lstlisting}
+args: learning rate $\eta >0$
+let $\cC \in K$ be finite
+for $t = 1$ to $n$:
+    compute $q_t(x) = \frac{\exp(-\eta\sum_{u=1}^{t-1}\hat{s}_u(x))}{\sum_{y\in\cC}\exp(-\eta\sum_{u=1}^{t-1}\hat{s}_u(x))}$ for all $x \in \cC$
+    find distribution $p_t$ as a function of $q_t$
+    sample $X_t \sim p_t$, and observe $Y_t = f_t(X_t)$
+    compute $\hat{s}_t(x) \forall x \in \cC$ using $p_t, q_t, X_t, Y_t$
+\end{lstlisting}
+            \caption{Exponential Weights with Importance Sampling}\label{alg:exp-imp}
+        \end{mdframed}
+    \end{minipage}
+\end{algorithm}
+
+\begin{theorem}[\cite{lattimore2024bandit}, Theorem 8.14]
+    \label{thm:exp-imp-regret}
+    Let $x_\star = \argmin_{x \in \cC} \sum_{t=1}^{n} f_t(x)$ and
+    $p_\star \in \Delta(\cC)$ be a Dirac on $x_\star$.
+    The expected regret of \cref{alg:exp-imp} is bounded by
+    \begin{align*}
+        \E\left[
+            \Reg_n(x_\star)
+            \right]
+        = \frac{\log(|\cC|)}{\eta} +
+        \sum_{t=1}^{n} \E\left[
+            \langle p_t - p_\star, f_t \rangle
+            + \langle p_\star - q_t, \hat{s}_t \rangle
+            + \frac{1}{\eta} \cS_t(\eta \hat{s}_t)
+            \right]\,.
+    \end{align*}
+\end{theorem}
+\begin{proof}
+    Immediate from \cref{thm:exp-imp}.
+\end{proof}
+
+\section{Exploration By Optimisation}
+Let
+\begin{itemize}
+    \item $\cG$ be the set of all functions $g:\cC \to \R$, i.e., $\cG = \R^{|\cC|}$.
+    \item $\cE$ be the set of all functions $E: \cC \times \R \to \cG$.
+\end{itemize}
+The idea is to bound the term inside the expectation in \cref{thm:exp-imp-regret} uniformly over all $t \in [n]$.
+To this end, define
+\begin{align*}
+    \Lambda_\eta(q, p, E, r, f) & =
+    \frac{1}{\eta}
+    \E\left[
+        \langle p - r, f \rangle
+        + \langle r - q, E(X, Y) \rangle
+        + \frac{1}{\eta} \cS_q(\eta E(X, Y))
+        \right]\,.
+\end{align*}
+Note that the randomness is only through $X$ and $Y$, where $X \sim p$ and $Y = f(X)$.
+For the learner, the degree of freedom is in the choice of the estimator $\hat{s}_t$ and the exploration distribution $p_t$.
+Therefore, fix $t \in [n]$ and define
+\begin{align*}
+    \Lambda_\eta(q) & =
+    \inf_{p \in \Delta(\cC), E \in \cE}
+    \sup_{r \in \Delta(\cC), f \in \cF_b} \frac{1}{\eta}
+    \Lambda_\eta(q, p, E, r, f)\,.
+\end{align*}
+\begin{remark}
+    There is a bit of waste here since the supremum is taken over all $r \in \Delta(\cC)$, but it could've been restricted to dirac distributions.
+\end{remark}
+
+\begin{algorithm}[h!]
+    \begin{minipage}{12cm}
+        \begin{mdframed}
+            \begin{lstlisting}
+args: learning rate $\eta >0$, precision $\epsilon > 0$
+let $\cC \in K$ be finite
+for $t = 1$ to $n$:
+    compute $q_t(x) = \frac{\exp(-\eta\sum_{u=1}^{t-1}\hat{s}_u(x))}{\sum_{y\in\cC}\exp(-\eta\sum_{u=1}^{t-1}\hat{s}_u(x))}$ for all $x \in \cC$
+    find distribution $p_t \in \Delta(\cC)$ and $E_t \in \cE$ such that
+        $\Lambda_\eta(q_t, p_t, E_t) \leq \inf_{p,E} \Lambda_\eta(q_t) + \epsilon$
+    sample $X_t \sim p_t$, and observe $Y_t = f_t(X_t)$
+    compute $\hat{s}_t(x) = E_t(X_t, Y_t)$
+\end{lstlisting}
+            \caption{Exploration by Optimisation}\label{alg:exp-by-opt}
+        \end{mdframed}
+    \end{minipage}
+\end{algorithm}
+It's worth noting that \cref{alg:exp-by-opt} is a instantiation of \cref{alg:exp-imp} where the estimator $\hat{s}_t$ and the exploration distribution $p_t$ are chosen by solving an optimisation problem.
+
+\begin{theorem}[\cite{lattimore2024bandit}, Theorem 8.15] \label{thm:exp-by-opt-regret}
+    The expected regret of \cref{alg:exp-by-opt} is bounded by
+    \begin{align*}
+        \E\left[
+            \Reg_n(x_\star)
+            \right]
+         & \leq
+        \frac{\log(|\cC|)}{\eta}
+        +
+        n\eta \sup_{q \in \Delta(\cC)} \Lambda_\eta(q) + n\eta\epsilon\,.
+    \end{align*}
+\end{theorem}
+
+Therefore, from \cref{thm:exp-by-opt-regret}, to bound the regret of \cref{alg:exp-by-opt} it suffices to bound
+\begin{align*}
+    \Lambda^\star_\cC =
+    \sup_{\eta > 0, q \in \Delta(\cC)}
+    \inf_{p \in \Delta(\cC), E \in \cE}
+    \sup_{y \in \cC, f \in \cF_b}
+    \Lambda_\eta(q, p, E, y, f)\,.
+    \label{eq:exp-by-opt-saddle}
+\end{align*}
+
+The following lemma shows that the order of the infimum and supremum can be interchanged.
+\begin{lemma}
+    For all $\eta > 0$ and $q \in \Delta(\cC)$,  we have
+    \begin{align}
+        \inf_{p \in \Delta(\cC), E \in \cE}
+        \sup_{r \in \Delta(\cC), f \in \cF_b}
+        \Lambda_\eta(q, p, E, r, f)
+        =
+        \sup_{r \in \Delta(\cC), f \in \cF_b}
+        \inf_{p \in \Delta(\cC), E \in \cE}
+        \Lambda_\eta(q, p, E, r, f)\,.
+    \end{align}
+\end{lemma}
+
+\subsection{Unrestricted estimator class $\cE$}
+The minimizer $E$ in the general case has the following close form.
+\begin{lemma}
+    Given $r \in \Delta(\cC)$, $f \in \cF_b$, and $p \in \Delta(\cC)$
+    define $G_{r, f, p} \in \cE$ as
+    \begin{align}
+        G_{r, f, p}(x, y) & =
+        \frac{1}{\eta}\left(
+        R'(q) - R'(\E[p_\star|f(x) = y])
+        \right)\,,
+    \end{align}
+    then we have
+    \begin{align*}
+        \inf_{E \in \cE}
+        \Lambda_\eta(q, p, E, r, f)
+         & =
+        \Lambda_\eta(q, p, G_{r, f, p}, r, f).
+    \end{align*}
+\end{lemma}
+
+\subsection{Restricted estimator class $\cE$}
+Define $E$ through a probability kernel $T$ such that
+\begin{align*}
+    E(x,y)                  & = \frac{T(x|\cdot) y}{p(x)} \,\,(= \hat{s}_x(\cdot))\,, \\
+    \text{and} \quad
+    \sum_{x \in \cC} T(x|y) & = 1\quad \text{for all } y \in \cC\,,
+    % p(x) = \sum_{y \in \cC} T(x|y) q(y)\quad \text{and} \quad
+\end{align*}
+% We can show $T$ as a $|\cC| \times |\cC|$ matrix, where $T(x|y)$ is the entry in row $x$ and column $y$, then we have
+% \begin{align*}
+%     p = T q\quad \text{and} \quad
+%     1^* T = 1^*\,.
+% \end{align*}
+Again, fix $r \in \Delta(\cC)$, $f \in \cF_b$, and $p \in \Delta(\cC)$.
+We are interested in the $T$ that minimizes
+\begin{align*}
+    \Lambda(T) := & \E\left[
+        \langle p - r, f \rangle
+        + \langle r - q, E(X, Y) \rangle
+        + \frac{1}{\eta} \cS_q(\eta E(X, Y))
+        \right]
+    \\
+                  & = \E\left[
+        \E\left[
+            \langle p - r, f \
+            \rangle
+            + \langle r - q, \tfrac{T(X|\cdot) Y}{p(X)} \rangle
+            + \frac{1}{\eta} \cS_q\left(\eta \tfrac{T(X|\cdot) Y}{p(X)}\right)
+            \bigg| X
+            \right]
+        \right]\,.
+\end{align*}
+Define the shorthand $T_x = T(X| \cdot) \in \R^{|\cC|}$.
+Then through differentiation we have
+\begin{align*}
+     & \nabla_{T_x}
+    \Lambda(T)      \\
+     & =
+    \nabla_{T_x}
+    \E\left[
+        \langle p - r, f \
+        \rangle
+        + \langle r - q, \tfrac{T(X|\cdot) Y}{p(X)} \rangle
+        + \frac{1}{\eta} \cS_q\left(\eta \tfrac{T(X|\cdot) Y}{p(X)}\right)
+        \bigg| X = x
+        \right]
+    \\
+     & =
+    \nabla_{T_x}
+    \E\left[
+        \langle r - q, \tfrac{T_x Y}{p(X)} \rangle
+        + \frac{1}{\eta} \left(
+        R^\star\left(R'(q) - \eta \tfrac{T_x Y}{p(X)}\right)
+        - R^\star(R'(q))
+        - \nabla R^\star(R'(q))^\top (- \eta \tfrac{T_x Y}{p(X)})
+        \right)
+        \bigg| X = x
+        \right]
+    \\
+     & =
+    \nabla_{T_x}
+    \E\left[
+        \langle r, \tfrac{T_x Y}{p(X)} \rangle
+        -
+        \tfrac{Y}{p(X)} q^\top T_x
+        + \frac{1}{\eta} \left(
+        R^\star\left(R'(q) - \eta \tfrac{T_x Y}{p(X)}\right)
+        + \tfrac{\eta Y}{p(X)} q^\top T_x
+        \right)
+        \bigg| X = x
+        \right]
+    \\
+     & =
+    \nabla_{T_x}
+    \E\left[
+        \langle r, \tfrac{T_x Y}{p(X)} \rangle
+        + \frac{1}{\eta}
+        R^\star\left(R'(q) - \eta \tfrac{T_x Y}{p(X)}\right)
+        \bigg| X = x
+        \right]
+    \\
+     & =
+    \E\Biggl[
+        \frac{Y}{p(x)}
+        \Bigl(
+        r - \nabla R^\star\Bigl(R'(q)-\eta\,\tfrac{T_x\,Y}{p(x)}\Bigr)
+        \Bigr)
+        \,\Big|\, X = x
+        \Biggr]
+    \\
+     & =
+    \frac{1}{p(x)}
+    \E\Biggl[
+        Y \Bigl(
+        r - \exp\Bigl(R'(q)-\eta\,\tfrac{T_x\,Y}{p(x)}\Bigr)
+        \Bigr)
+        \,\Big|\, X = x
+        \Biggr]
+    \\
+     & =
+    \frac{1}{p(x)}
+    \left(
+    f(x)r -
+    \E\Biggl[
+        Y
+        \exp\Bigl(R'(q)- \tfrac{\eta}{p(x)} Y T_x\Bigr)
+        \,\Big|\, X = x
+        \Biggr]
+    \right)
+\end{align*}
+we want to solve for $T_x$ such that the gradient is zero.
+Therefore, for coordinate $z \in \cC$ we have
+\begin{align*}
+    \E\Biggl[
+        Y
+        \exp\Bigl(R'(q)_z - \tfrac{\eta}{p(x)} Y T_{x,z}\Bigr)
+        \,\Big|\, X = x
+        \Biggr]
+     & =
+    f(x)r_z \,,
+\end{align*}
+which is equivalent to
+\begin{align*}
+    \sum_{x' \in \cC}
+    p(x')
+    f(x')
+    \exp\Bigl(R'(q)_z - \tfrac{\eta}{p(x)} f(x') T_{x,z}\Bigr)
+     & =
+    f(x)r_z               \\
+    \Leftrightarrow
+    \sum_{x' \in \cC}
+    p(x')
+    f(x')
+    \exp\Bigl(-\tfrac{\eta}{p(x)} f(x') T_{x,z}\Bigr)
+     & =
+    \exp(-R'(q)_z)f(x)r_z \\
+\end{align*}
+
+
+
+\bibliographystyle{plainnat}
+\bibliography{all}
+
+
+\end{document}
+
+
+
+
+
