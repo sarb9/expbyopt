@@ -87,6 +87,7 @@
 \newcommand{\BReg}{\mathfrak{BR}}
 \newcommand{\norm}[1]{\Vert #1 \Vert}
 \newcommand{\E}{\mathbb E}
+\newcommand{\PP}{\mathbb P}
 \newcommand{\Var}{\mathbb V}
 \newcommand{\cE}{\mathcal E}
 \newcommand{\cK}{\mathcal K}
@@ -139,13 +140,13 @@ Reuse the notation from \cite{lattimore2024bandit}.
 \end{assumption}
 
 \section{Exponential Weights with Importance Sampling}
+\textit{Here, it's better to think of $\hat{s}_t$ as the losses observed at time $t$ and not the estimates of the losses.}
 Let $(\hat{s}_t)_{t=1}^n:\cC \to \R$ be a sequence of functions and
 \begin{align}
-    q_t(x) & = \frac{\exp(-\eta \sum_{u=1}^{t-1} \hat{s}_u(x))}{\sum_{y \in \cC} \exp(-\eta \sum_{u=1}^{t-1} \hat{s}_u(y))}, \quad x \in \cC\,.
+    q_t(x) & = \frac{\exp(-\eta \sum_{u=1}^{t-1} \hat{s}_u(x))}{\sum_{y \in \cC} \exp(-\eta \sum_{u=1}^{t-1} \hat{s}_u(y))}\,, \quad x \in \cC\,.
 \end{align}
 
-The following theorem gives a bound on the regret of the exponential weights algorithm in the original setting.
-\textit{Here, it's better to think of $\hat{s}_t$ as the losses observed at time $t$ and not the estimates of the losses.}
+The following theorem gives a bound on the regret of the exponential weights algorithm when the whole loss vector $\hat{s}_t$ (or better say $f_t$) is observed.
 \begin{theorem}[\cite{lattimore2024bandit}, Theorem 8.11]
     \label{thm:exp-imp}
     For any $y \in \cC$ we have
@@ -180,9 +181,7 @@ for $t = 1$ to $n$:
     $p_\star \in \Delta(\cC)$ be a Dirac on $x_\star$.
     The expected regret of \cref{alg:exp-imp} is bounded by
     \begin{align*}
-        \E\left[
-            \Reg_n(x_\star)
-            \right]
+        \E\left[\Reg_n(x_\star)\right]
         = \frac{\log(|\cC|)}{\eta} +
         \sum_{t=1}^{n} \E\left[
             \langle p_t - p_\star, f_t \rangle
@@ -192,37 +191,59 @@ for $t = 1$ to $n$:
     \end{align*}
 \end{theorem}
 \begin{proof}
-    Immediate from \cref{thm:exp-imp}.
+    We have
+    \begin{align*}
+        \E\left[\Reg_n(x_\star)\right]
+         & =
+        \E\left[
+            \sum_{t=1}^{n} \langle p_t - p_\star, f_t \rangle
+        \right] \\
+         & =
+        \E\left[
+        \sum_{t=1}^{n}
+        \underbrace{\langle p_t - p_\star, f_t \rangle}_{\text{actual}}
+        - \underbrace{\langle q_t - p_\star, \hat{s}_t \rangle}_{\text{shadow}}
+        + \langle q_t - p_\star, \hat{s}_t \rangle
+        \right] \\
+         & \leq
+        \frac{\log(|\cC|)}{\eta}+
+        \E\left[
+            \sum_{t=1}^{n}
+            \langle p_t - p_\star, f_t \rangle
+            - \langle q_t - p_\star, \hat{s}_t \rangle
+            + \frac{1}{\eta} \cS_t(\eta \hat{s}_t)
+            \right]
+    \end{align*}
+    where the last inequality follows from \cref{thm:exp-imp}.
 \end{proof}
 
 \section{Exploration By Optimisation}
-Let
-\begin{itemize}
-    \item $\cG$ be the set of all functions $g:\cC \to \R$, i.e., $\cG = \R^{|\cC|}$.
-    \item $\cE$ be the set of all functions $E: \cC \times \R \to \cG$.
-\end{itemize}
 The idea is to bound the term inside the expectation in \cref{thm:exp-imp-regret} uniformly over all $t \in [n]$.
-To this end, define
-\begin{align*}
-    \Lambda_\eta(q, p, E, r, f) & =
-    \frac{1}{\eta}
-    \E\left[
-        \langle p - r, f \rangle
-        + \langle r - q, E(X, Y) \rangle
-        + \frac{1}{\eta} \cS_q(\eta E(X, Y))
-        \right]\,.
-\end{align*}
-Note that the randomness is only through $X$ and $Y$, where $X \sim p$ and $Y = f(X)$.
 For the learner, the degree of freedom is in the choice of the estimator $\hat{s}_t$ and the exploration distribution $p_t$.
-Therefore, fix $t \in [n]$ and define
-\begin{align*}
-    \Lambda_\eta(q) & =
-    \inf_{p \in \Delta(\cC), E \in \cE}
-    \sup_{r \in \Delta(\cC), f \in \cF_b} \frac{1}{\eta}
-    \Lambda_\eta(q, p, E, r, f)\,.
-\end{align*}
+To this end, define
+\begin{itemize}
+    \item $\cG$ be the set of all functions $g:\cC \to \R$, i.e., $\cG = \R^{|\cC|}$ (all loss vectors),
+    \item $\cE$ be the set of all functions $E: \cC \times \R \to \cG$ (choice of $\hat{s}$),
+    \item
+          $\Lambda_\eta(q, p, E, r, f) =
+              \frac{1}{\eta}
+              \E_{X\sim p}\!\left[
+                  \langle p - r, f \rangle
+                  + \langle r - q, E(X, Y) \rangle
+                  + \frac{1}{\eta} \cS_q(\eta E(X, Y))
+                  \right]$,
+\end{itemize}
+where $q \in \Delta(\cC)$ is the exponential weights distribution at time $t$, $p \in \Delta(\cC)$ is the exploration distribution, $E \in \cE$ is the estimator, $r \in \Delta(\cC)$ is the Dirac on the best action, and $f \in \cF_b$ is the loss function.
+Note that the randomness is only through $X$ and $Y$, where $X \sim p$ and $Y = f(X)$.
+% Therefore, fix $t \in [n]$ and define
+% \begin{align*}
+%     \Lambda_\eta(q) & =
+%     \inf_{p \in \Delta(\cC), E \in \cE}
+%     \sup_{r \in \Delta(\cC), f \in \cF_b} \frac{1}{\eta}
+%     \Lambda_\eta(q, p, E, r, f)\,.
+% \end{align*}
 \begin{remark}
-    There is a bit of waste here since the supremum is taken over all $r \in \Delta(\cC)$, but it could've been restricted to dirac distributions.
+    There is a bit of waste later since we suppose that $r \in \Delta(\cC)$, but it could've been restricted to Dirac distributions.
 \end{remark}
 
 \begin{algorithm}[h!]
@@ -258,19 +279,20 @@ It's worth noting that \cref{alg:exp-by-opt} is a instantiation of \cref{alg:exp
 \end{theorem}
 
 Therefore, from \cref{thm:exp-by-opt-regret}, to bound the regret of \cref{alg:exp-by-opt} it suffices to bound
-\begin{align*}
+\begin{align}
     \Lambda^\star_\cC =
     \sup_{\eta > 0, q \in \Delta(\cC)}
     \inf_{p \in \Delta(\cC), E \in \cE}
     \sup_{y \in \cC, f \in \cF_b}
     \Lambda_\eta(q, p, E, y, f)\,.
     \label{eq:exp-by-opt-saddle}
-\end{align*}
+\end{align}
 
 The following lemma shows that the order of the infimum and supremum can be interchanged.
 \begin{lemma}
+    \label{lem:exp-by-opt-minimax-wrong}
     For all $\eta > 0$ and $q \in \Delta(\cC)$,  we have
-    \begin{align}
+    \begin{align*}
         \inf_{p \in \Delta(\cC), E \in \cE}
         \sup_{r \in \Delta(\cC), f \in \cF_b}
         \Lambda_\eta(q, p, E, r, f)
@@ -278,72 +300,639 @@ The following lemma shows that the order of the infimum and supremum can be inte
         \sup_{r \in \Delta(\cC), f \in \cF_b}
         \inf_{p \in \Delta(\cC), E \in \cE}
         \Lambda_\eta(q, p, E, r, f)\,.
-    \end{align}
+    \end{align*}
 \end{lemma}
+This lemma is \textcolor{red}{wrong} though... The minimax theorem only applies if the sup player should can choose from a joint distribution over $r$ and $f$.
+
+Let $\nu \in \Delta(\Delta(\cC) \times \cF_b)$ be a joint distribution over $p_\star \in \Delta(\cC)$ and $f \in \cF_b$.
+\textit{$p_\star$ is the same thing as $r$...}
+Define the bayesian version of $\Lambda_\eta(q, p, E, \nu)$ as
+\begin{align*}
+    \bar{\Lambda}_\eta(q, p, E, \nu) & :=
+    \frac{1}{\eta}
+    \E_{X \sim p, (p_\star, f) \sim \nu}\!\left[
+        \langle p_\star - q, E(X, Y) \rangle
+        + \langle p_\star - p, f \rangle
+        + \frac{1}{\eta} \cS_q(\eta E(X, Y))
+        \right]\,.
+\end{align*}
+It's easy to see that
+\begin{align*}
+    \inf_{p \in \Delta(\cC), E \in \cE}
+    \sup_{r \in \Delta(\cC), f \in \cF_b}
+    \Lambda_\eta(q, p, E, r, f)
+     & \leq
+    \inf_{p \in \Delta(\cC), E \in \cE}
+    \sup_{\nu \in \Delta(\Delta(\cC) \times \cF_b)}
+    \bar{\Lambda}_\eta(q, p, E, \nu)\,.
+\end{align*}
+\begin{lemma}[\cite{lattimore2024bandit}, Lemma 8.21]
+    \label{lem:exp-by-opt-minimax}
+    For all $\eta > 0$ and $q \in \Delta(\cC)$,  we have
+    \begin{align*}
+        \inf_{p \in \Delta(\cC), E \in \cE}
+        \sup_{\nu \in \Delta(\Delta(\cC) \times \cF_b)}
+        \bar{\Lambda}_\eta(q, p, E, \nu)
+         & =
+        \sup_{\nu \in \Delta(\Delta(\cC) \times \cF_b)}
+        \inf_{p \in \Delta(\cC), E \in \cE}
+        \bar{\Lambda}_\eta(q, p, E, \nu)\,.
+    \end{align*}
+\end{lemma}
+In the following two subsections we will solve for the $\inf$ in the RHS of \cref{lem:exp-by-opt-minimax}. In the following $q\in \Delta(\cC)$ is fixed and we will drop it from the notation.
+
+\subsection{Simplifying $\Lambda_\eta$}
+\begin{remark}
+    We specialize to $R$ being the unnormalised negentropy function, so that we can make the connection to the KL term in IDS.
+\end{remark}
+Note that for $a \in \Delta(\cC)$ we have
+\begin{align*}
+    R^\star(a) = \sum_{x \in \cC} \exp(a(x))\,,
+\end{align*}
+and $R'(a) = \ln(a)$, which means that
+\begin{align*}
+    R^\star(R'(a)) = \sum_{x \in \cC} a(x) = 1\,.
+\end{align*}
+Suppose that $X \sim p$, $Y = f(X)$, and $(p_\star, f) \sim \nu$, and define
+\begin{align*}
+    \Delta(\nu, p) & = \E\!\left[
+        \langle p_\star - p, f \rangle
+        \right]\,,
+\end{align*}
+Then we can write
+\begin{align*}
+     & \eta \Lambda_\eta(q, p, E, \nu)
+    \\
+     & =
+    \E\!\left[
+        \langle p_\star - q, E(X, Y) \rangle
+        + \langle p_\star - p, f \rangle
+        + \frac{1}{\eta} \cS_q(\eta E(X, Y))
+        \right]
+    \\
+     & =
+    \Delta(\nu, p) +
+    \E\!\left[
+        \langle p_\star - q, E(X, Y) \rangle
+        + \frac{1}{\eta}
+        \left(
+        R^\star\left(R'(q) - \eta E(X, Y)\right)
+        - R^\star(R'(q))
+        - \nabla R^\star(R'(q))^\top (- \eta E(X, Y))
+        \right)
+        \right]
+    \\
+     & =
+    \Delta(\nu, p) +
+    \E\!\left[
+        \langle p_\star - q, E(X, Y) \rangle
+        + \frac{1}{\eta}
+        \left(
+        R^\star\left(\ln(q) - \eta E(X, Y)\right)
+        - 1
+        + \eta \langle q, E(X, Y) \rangle
+        \right)
+        \right]
+    \\
+     & =
+    \Delta(\nu, p) +
+    \E\!\left[
+        \langle p_\star, E(X, Y) \rangle
+        + \frac{1}{\eta} R^\star\left(\ln(q) - \eta E(X, Y)\right)
+        \right]
+    - \frac{1}{\eta}
+    \\
+     & =
+    \Delta(\nu, p) +
+    \E\!\left[
+        \langle p_\star, E(X, Y) \rangle
+        + \frac{1}{\eta}
+        \sum_{z \in \cC}\exp\left(\ln(q_z) - \eta E(X, Y)_z\right)
+        \right]
+    - \frac{1}{\eta}
+    \\
+     & =
+    \Delta(\nu, p) +
+    \E\!\left[
+        \langle p_\star, E(X, Y) \rangle
+        + \frac{1}{\eta}
+        \sum_{z \in \cC}q_z \exp\left(- \eta E(X, Y)_z\right)
+        \right]
+    - \frac{1}{\eta}
+    \\
+     & =
+    \Delta(\nu, p) +
+    \E\!\left[
+        \langle p_\star, E(X, Y) \rangle
+        + \frac{1}{\eta}
+        \langle q, \exp(- \eta E(X, Y))\rangle
+        \right]
+    - \frac{1}{\eta}
+\end{align*}
 
 \subsection{Unrestricted estimator class $\cE$}
 The minimizer $E$ in the general case has the following close form.
 \begin{lemma}
-    Given $r \in \Delta(\cC)$, $f \in \cF_b$, and $p \in \Delta(\cC)$
-    define $G_{r, f, p} \in \cE$ as
-    \begin{align}
-        G_{r, f, p}(x, y) & =
+    Given $\nu \in \Delta(\Delta(\cC), \cF_b)$, and $p \in \Delta(\cC)$
+    define $G_{\nu, p} \in \cE$ as
+    \begin{align*}
+        G_{\nu, p}(x, y) & =
         \frac{1}{\eta}\left(
         R'(q) - R'(\E[p_\star|f(x) = y])
         \right)\,,
-    \end{align}
-    then we have
-    \begin{align*}
-        \inf_{E \in \cE}
-        \Lambda_\eta(q, p, E, r, f)
-         & =
-        \Lambda_\eta(q, p, G_{r, f, p}, r, f).
     \end{align*}
+    then we have
+    $
+        \inf_{E \in \cE}
+        \Lambda_\eta(p, E, \nu)
+        =
+        \Lambda_\eta(p, G_{\nu, p}, \nu)\,.
+    $
 \end{lemma}
+\begin{proof}
+    By taking the derivative of $\Lambda_\eta(p, E, \nu)$ with respect to $E(x,y)$ we have
+    \begin{align*}
+         & \nabla_{E(x,y)}
+        \Lambda_\eta(p, E, \nu)
+        \\
+         & =
+        \tfrac{\PP(f(x)=y,X=x)}{\eta}
+        \nabla_{E(x,y)}
+        \E\!\left[
+            \langle p_\star, E(X, Y) \rangle
+            + \tfrac{1}{\eta}
+            \langle q, \exp(- \eta E(X, Y))\rangle
+            |
+            X = x, f(x) = y
+            \right]
+        \\
+         & =
+        \tfrac{\PP(f(x)=y,X=x)}{\eta}
+        \E\!\left[
+            p_\star
+            -
+            q \odot \exp(- \eta E(X, Y))
+            |
+            X = x, f(x) = y
+            \right]
+        \\
+         & =
+        \tfrac{\PP(f(x)=y,X=x)}{\eta}
+        \E\!\left[
+            p_\star
+            |
+            X = x, f(x) = y
+            \right]
+        -
+        \tfrac{1}{\eta}
+        q \odot \exp(- \eta E(x, y))\,.
+    \end{align*}
+    By setting the gradient to zero, for any $z \in \cC$ we have
+    \begin{align*}
+        \E\!\left[
+            p_\star
+            |
+            X = x, f(x) = y
+            \right]_z
+         & =
+        q_z \exp(- \eta E(x, y))_z\,,
+    \end{align*}
+    which gives
+    \begin{align*}
+        E(x, y)_z
+         & =
+        -\frac{1}{\eta} \ln\left(
+        \frac{\E\!\left[p_\star|X = x, f(x) = y\right]_z}{q_z}
+        \right)
+        \\
+         & =
+        \frac{1}{\eta}\left(
+        \ln(q_z)-
+        \ln\left(
+            \E\!\left[p_\star|X = x, f(x) = y\right]_z
+            \right)
+        \right)\,,
+    \end{align*}
+    which, since $R'(q_z) = \ln(q_z)$ gives the desired result.
+\end{proof}
 
-\subsection{Restricted estimator class $\cE$}
-Define $E$ through a probability kernel $T$ such that
+\subsection{IS estimator class--multiplicative in $y$}
+Restrict $E(x,y)$ to be of the form
+\begin{align*}
+    E(x,y) & = \frac{y}{p(x)} T(x)\,,
+\end{align*}
+where a special case could be a probability kernel as
 \begin{align*}
     E(x,y)                  & = \frac{T(x|\cdot) y}{p(x)} \,\,(= \hat{s}_x(\cdot))\,, \\
     \text{and} \quad
     \sum_{x \in \cC} T(x|y) & = 1\quad \text{for all } y \in \cC\,,
-    % p(x) = \sum_{y \in \cC} T(x|y) q(y)\quad \text{and} \quad
 \end{align*}
-% We can show $T$ as a $|\cC| \times |\cC|$ matrix, where $T(x|y)$ is the entry in row $x$ and column $y$, then we have
-% \begin{align*}
-%     p = T q\quad \text{and} \quad
-%     1^* T = 1^*\,.
-% \end{align*}
-Again, fix $r \in \Delta(\cC)$, $f \in \cF_b$, and $p \in \Delta(\cC)$.
+which includes all importance sampling estimators that are \textbf{multiplicative} in y.
+Let $\nu \in \Delta(\Delta(\cC) \times \cF_b)$ and $p \in \Delta(\cC)$.
 We are interested in the $T$ that minimizes
 \begin{align*}
-    \Lambda(T) := & \E\left[
-        \langle p - r, f \rangle
-        + \langle r - q, E(X, Y) \rangle
-        + \frac{1}{\eta} \cS_q(\eta E(X, Y))
+    \eta \bar \Lambda(T)
+     & :=
+    \Delta(\nu, p) +
+    \E\!\left[
+        \langle p_\star, E(X, Y) \rangle
+        + \frac{1}{\eta}
+        \langle q, \exp(- \eta E(X, Y))\rangle
         \right]
+    - \frac{1}{\eta}
     \\
-                  & = \E\left[
+     & :=
+    \Delta(\nu, p) +
+    \E\!\left[
         \E\left[
-            \langle p - r, f \
-            \rangle
-            + \langle r - q, \tfrac{T(X|\cdot) Y}{p(X)} \rangle
-            + \frac{1}{\eta} \cS_q\left(\eta \tfrac{T(X|\cdot) Y}{p(X)}\right)
+            \langle p_\star, \tfrac{T(X|\cdot) Y}{p(X)} \rangle
+            + \frac{1}{\eta}
+            \langle q, \exp(- \eta \tfrac{T(X|\cdot) Y}{p(X)})\rangle
             \bigg| X
             \right]
+        \right]
+    - \frac{1}{\eta}\,.
+\end{align*}
+Note that we drop the sampling notation but it's important to remember that $f, p_\star, X$ and $Y$ are random.
+Define the shorthand $T_x = T(x| \cdot) \in \R^{|\cC|}$.
+Then through differentiation we have
+\begin{align*}
+    \nabla_{T_x} \bar{\Lambda}(T)
+     & = \tfrac{p(x)}{\eta}\nabla_{T_x} \E\!\left[
+        \langle p_\star, \tfrac{T_x Y}{p(X)} \rangle
+        + \frac{1}{\eta}
+        \langle q, \exp(- \eta \tfrac{T_x Y}{p(X)})\rangle
+        | X = x
+        \right]
+    \\
+     & = \tfrac{p(x)}{\eta} \E\!\left[
+        \tfrac{Y}{p(X)} p_\star
+        - \tfrac{Y}{p(X)} q \odot \exp(- \tfrac{\eta Y}{p(X)} T_X)
+        | X = x
+        \right]
+    \\
+     & = \tfrac{1}{\eta} \E\!\left[
+        Y \left(
+        p_\star
+        - q \odot \exp(- \tfrac{\eta Y}{p(X)} T_X)
+        \right)
+        | X = x
+        \right]\,,
+\end{align*}
+where the expectation is over $(p_\star, f) \sim \nu$.
+We want to solve for $T_x$ such that the gradient is zero, so for coordinate $z \in \cC$ we have
+\begin{align}
+    q(z) \E\!\left[
+        f(X)\exp(- \tfrac{\eta f(X)}{p(X)} T(X|z))
+        | x
+        \right]
+    =
+    \E\!\left[
+        f(X) p_{\star, z}
+        | x
+        \right]
+    =
+    \PP(x_\star = z)
+    \E\!\left[
+        f(X)
+        | x_\star = z, x
+        \right]
+    \label{eq:zero-grad}
+\end{align}
+If $p_\star$ is a Dirac on $z$ almost surely, then the RHS is $\E[f(X)|X=x]$,
+while if $T(x|z) \geq 0$ then the LHS is bounded by
+\begin{align*}
+    q(z)
+    \E\!\left[
+        f(X)\exp(- \tfrac{\eta f(X)}{p(X)} T(X|z))
+        | X = x
+        \right]
+    \leq
+    q(z)
+    \E\!\left[f(X)| X = x\right]\,.
+\end{align*}
+\begin{remark}
+    If $T(x|\cdot) \geq 0$, the gradient can't be zero in the general case.
+\end{remark}
+\begin{remark}
+    The LHS is the first derivative of the moment generating function of $f(X)|X=x$ evaluated at $-\frac{\eta}{p(X)} T(x|z)$.
+\end{remark}
+\paragraph{$\bullet$ Closed form for $T(x|z)$?}
+It can be seen that it's unlikely that $T(x|z)$ has a closed form.
+However, there might be a chance to use \cref{eq:zero-grad} when this is evaluated on $\bar{\Lambda}$:
+\begin{align}
+    \eta\bar{\Lambda}(T)
+     & =
+    \Delta(\nu, p) +
+    \E\!\left[
+        \langle p_\star, E(X, Y) \rangle
+        + \frac{1}{\eta}
+        \langle q, \exp(- \eta E(X, Y))\rangle
+        \right]
+    - \frac{1}{\eta}
+    \nonumber
+    \\
+     & =
+    \Delta(\nu, p) +
+    \E\!\left[
+        \langle p_\star, \tfrac{T(X|\cdot) Y}{p(X)} \rangle
+        + \frac{1}{\eta}
+        \langle q, \exp(- \eta \tfrac{T(X|\cdot) Y}{p(X)})\rangle
+        \right]
+    - \frac{1}{\eta}
+    \nonumber
+    \\
+     & =
+    \Delta(\nu, p) +
+    \E\!\left[
+        \langle f(X) p_\star, \tfrac{T(X|\cdot)}{p(X)} \rangle
+        + \frac{1}{\eta}
+        \langle q, \exp(- \eta \tfrac{T(X|\cdot) Y}{p(X)})\rangle
+        \right]
+    - \frac{1}{\eta}\,,
+    \label{eq:checkpiont1}
+\end{align}
+For the first term, we can use \cref{eq:zero-grad} to get
+\begin{align*}
+    \E\!\left[
+        \langle f(X) p_\star, \tfrac{T(X|\cdot)}{p(X)} \rangle
+        | X =x
+        \right]
+     & =
+    \left\langle
+    \E\!\left[
+        f(X) p_\star
+        | X =x
+        \right]
+    , \tfrac{T(x|\cdot)}{p(x)}
+    \right\rangle
+    \\
+     & =
+    \left\langle
+    \E\!\left[
+        f(x) q \odot \exp(- \tfrac{\eta f(x)}{p(x)} T(x|\cdot))
+        \right]
+    , \tfrac{T(x|\cdot)}{p(x)}
+    \right\rangle
+    \\
+     & =
+    \left\langle
+    q \odot
+    \E\!\left[
+        f(x)
+        \exp(- \tfrac{\eta f(x)}{p(x)} T(x|\cdot))
+        \right]
+    , \tfrac{T(x|\cdot)}{p(x)}
+    \right\rangle
+    \\
+     & =
+    \E\!\left[
+        Y
+        \left\langle
+        q
+        , \tfrac{T(x|\cdot)}{p(x)}
+        \odot
+        \exp(- \tfrac{\eta Y}{p(X)} T(X|\cdot))
+        \right\rangle
+        | X = x
+        \right]\,,
+\end{align*}
+putting this back into the expectation in \cref{eq:checkpiont1} gives
+\begin{align*}
+      & \E\!\left[
+        \langle f(X) p_\star, \tfrac{T(X|\cdot)}{p(X)} \rangle
+        + \frac{1}{\eta}
+        \langle q, \exp(- \eta \tfrac{T(X|\cdot) Y}{p(X)})\rangle
+        \right]
+    \\
+    = &
+    \E\!\left[
+        Y
+        \left\langle
+        q
+        , \tfrac{T(X|\cdot)}{p(X)}
+        \odot
+        \exp(- \tfrac{\eta T(X|\cdot) Y}{p(X)})
+        \right\rangle
+        + \frac{1}{\eta}
+        \langle q, \exp(- \tfrac{\eta T(X|\cdot) Y}{p(X)})\rangle
+        \right]
+    \\
+    = &
+    \E\!\left[
+        Y
+        \left\langle
+        q
+        \odot
+        \exp(- \tfrac{\eta T(X|\cdot) Y}{p(X)})
+        , \tfrac{T(x|\cdot)}{p(X)}
+        \right\rangle
+        + \frac{1}{\eta}
+        \langle
+        q
+        \odot
+        \exp(- \tfrac{\eta T(X|\cdot) Y}{p(X)})
+        , 1_\cC\rangle
+        \right]
+    \\
+    = &
+    \E\!\left[
+        \left\langle
+        q
+        \odot
+        \exp(- \tfrac{\eta T(X|\cdot) Y}{p(X)})
+        , Y \tfrac{T(X|\cdot)}{p(X)} + \frac{1}{\eta} 1_\cC
+        \right\rangle
+        \right]\,,
+\end{align*}
+which makes the whole thing
+\begin{align*}
+    \bar{\Lambda}(T)
+     & =
+    \eta^{-1}
+    \Delta(\nu, p) +
+    \eta^{-2}
+    \left(
+    \E\!\left[
+            \left\langle
+            q
+            \odot
+            \exp(- \tfrac{\eta T(X|\cdot) Y}{p(X)})
+            , \tfrac{\eta T(X|\cdot)Y}{p(X)} +  1_\cC
+            \right\rangle
+            \right]
+    -1
+    \right)\,.
+\end{align*}
+Recall that $q$ was fixed through the minimax step, so we still have
+\begin{align*}
+    q_z & = \frac{\exp(-\eta\sum_{u=1}^{t-1}\hat{s}_u(z))}{\sum_{y\in\cC}\exp(-\eta\sum_{u=1}^{t-1}\hat{s}_u(y))}
+    \\
+        & = \frac{
+        \exp(-\eta\sum_{u=1}^{t-1} E_u(X_u, Y_u)_z)
+    }{\sum_{h\in\cC}\exp(-\eta\sum_{u=1}^{t-1}E_u(X_u, Y_u)_h)}
+    \\
+        & = \frac{
+        \exp(-\eta\sum_{u=1}^{t-1} Y_u \tfrac{T_u(X_u|z)}{p_u(z)})
+    }{\sum_{h\in\cC}\exp(-\eta\sum_{u=1}^{t-1} Y_u \tfrac{T_u(X_u|h)}{p_u(h)})}\,,
+\end{align*}
+This should play well with the new exponential term.
+
+
+\clearpage
+\paragraph{$\bullet$ The other way around?}
+Continuing from \cref{eq:zero-grad} we have
+\begin{align*}
+    q(z)
+    \E\!\left[
+        f(X)
+        \exp(- \tfrac{\eta f(X)}{p(X)} T(X|z))
+        | X = x
+        \right]
+     & =
+    \E\!\left[
+        f(X) p_{\star, z}
+        | X = x
+        \right]
+    \\
+    \Rightarrow
+    \sum_{z \in \cC}
+    q(z)
+    \E\!\left[
+        f(X)
+        \exp(- \tfrac{\eta f(X)}{p(X)} T(X|z))
+        | X = x
+        \right]
+     & =
+    \sum_{z \in \cC}
+    \E\!\left[
+        f(X) p_{\star, z}
+        | X = x
+        \right]
+    \\
+    \Rightarrow
+    \left\langle
+    q,
+    \E\!\left[
+        f(X)
+        \exp(- \tfrac{\eta f(X)}{p(X)} T(X|\cdot))
+        | X = x
+        \right]
+    \right\rangle
+     & =
+    \E\!\left[
+        f(X)
+        | X = x
+        \right]
+    \\
+    \Rightarrow
+    \E\!\left[
+        f(x)
+        \left\langle
+        q,
+        \exp(- \tfrac{\eta f(x)}{p(x)} T(x|\cdot))
+        \right\rangle
+        \right]
+     & =
+    \E\!\left[
+        f(x)
+        \right]
+\end{align*}
+Evaluating the expectation in \cref{eq:checkpiont1} gives
+\begin{align*}
+    \E\!\left[
+        \langle p_\star, \tfrac{T(X|\cdot) f(X)}{p(X)} \rangle
+        + \frac{1}{\eta}
+        \langle q, \exp(- \eta \tfrac{T(X|\cdot) f(X)}{p(X)})\rangle
+        \right]
+    = & \E\!\left[
+        \langle p_\star, \tfrac{T(X|\cdot) f(X)}{p(X)} \rangle
+        + \frac{1}{Y\eta}
+        Y
+        \langle q, \exp(- \eta \tfrac{T(X|\cdot) f(X)}{p(X)})\rangle
+        \right]
+\end{align*}
+
+\subsection{IS estimator--linear in $y$}
+Restrict $E(x,y)$ to be of the form
+\begin{align*}
+    E(x,y) & = \frac{y}{p(x)} T(x) + b(x)\,,
+\end{align*}
+which includes all importance sampling estimators that are \textbf{linear} in $y$.
+We are interested in the $T$ that minimizes
+\begin{align*}
+    \eta \bar \Lambda(T, b) & :=
+    \Delta(\nu, p) +
+    \E\!\left[
+        \E\left[
+            \langle p_\star, \tfrac{T(X) Y}{p(X)} + b(X)\rangle
+            + \frac{1}{\eta}
+            \langle q, \exp(- \eta \tfrac{T(X) Y}{p(X)} + b(X))\rangle
+            \bigg| X
+            \right]
+        \right]
+    - \frac{1}{\eta}\,.
+\end{align*}
+Then through differentiation we have
+\begin{align*}
+    \nabla_{T_x} \eta \bar{\Lambda}(T)
+     & = \nabla_{T_x} \E\!\left[
+        \langle p_\star, \tfrac{T_x Y}{p(X)} + b_x \rangle
+        + \frac{1}{\eta}
+        \langle q, \exp(- \eta \tfrac{T_x Y}{p(X)} + b_x)\rangle
+        \right]
+    \\
+     & = \E\!\left[
+        \tfrac{Y}{p(x)} p_\star
+        - \tfrac{Y}{p(x)} q \odot \exp(- \tfrac{\eta Y}{p(x)} T_x + b_x)
+        \right]\,,
+\end{align*}
+and
+\begin{align*}
+    \nabla_{b_x} \eta \bar{\Lambda}(T)
+     & = \nabla_{b_x} \E\!\left[
+        \langle p_\star, \tfrac{T_x Y}{p(X)} + b_x \rangle
+        + \frac{1}{\eta}
+        \langle q, \exp(- \eta \tfrac{T_x Y}{p(X)} + b_x)\rangle
+        \right]
+    \\
+     & = \E\!\left[
+        p_\star
+        - \tfrac{1}{\eta} q \odot \exp(- \tfrac{\eta Y}{p(x)} T_x + b_x)
+        \right]\,,
+\end{align*}
+where the expectation is over $(p_\star, f) \sim \nu$.
+We want to find $T_x$ such that the gradient is zero, so for coordinate $z \in \cC$ we have
+\begin{align*}
+    q(z) \E\!\left[
+        f(x)\exp(- \tfrac{\eta f(x)}{p(x)} T_{x,z} + b_{x,z})
+        \right]
+     & =
+    \E\!\left[
+        f(x) p_{\star, z}
+        \right]
+    =
+    \PP(x_\star = z)
+    \E\!\left[
+        f(x)
+        | x_\star = z
         \right]\,.
 \end{align*}
-Define the shorthand $T_x = T(X| \cdot) \in \R^{|\cC|}$.
-Then through differentiation we have
+
+
+
+
+\clearpage
+\section{Archive(useless for now)}
 \begin{align*}
      & \nabla_{T_x}
     \Lambda(T)      \\
      & =
     \nabla_{T_x}
     \E\left[
-        \langle p - r, f \
+        \langle p - p_\star, f \
         \rangle
-        + \langle r - q, \tfrac{T(X|\cdot) Y}{p(X)} \rangle
+        + \langle p_\star - q, \tfrac{T(X|\cdot) Y}{p(X)} \rangle
         + \frac{1}{\eta} \cS_q\left(\eta \tfrac{T(X|\cdot) Y}{p(X)}\right)
         \bigg| X = x
         \right]
@@ -351,7 +940,7 @@ Then through differentiation we have
      & =
     \nabla_{T_x}
     \E\left[
-        \langle r - q, \tfrac{T_x Y}{p(X)} \rangle
+        \langle p_\star - q, \tfrac{T_x Y}{p(X)} \rangle
         + \frac{1}{\eta} \left(
         R^\star\left(R'(q) - \eta \tfrac{T_x Y}{p(X)}\right)
         - R^\star(R'(q))
@@ -363,7 +952,7 @@ Then through differentiation we have
      & =
     \nabla_{T_x}
     \E\left[
-        \langle r, \tfrac{T_x Y}{p(X)} \rangle
+        \langle p_\star, \tfrac{T_x Y}{p(X)} \rangle
         -
         \tfrac{Y}{p(X)} q^\top T_x
         + \frac{1}{\eta} \left(
@@ -376,67 +965,81 @@ Then through differentiation we have
      & =
     \nabla_{T_x}
     \E\left[
-        \langle r, \tfrac{T_x Y}{p(X)} \rangle
+        \langle p_\star, \tfrac{T_x Y}{p(X)} \rangle
         + \frac{1}{\eta}
         R^\star\left(R'(q) - \eta \tfrac{T_x Y}{p(X)}\right)
         \bigg| X = x
         \right]
     \\
      & =
-    \E\Biggl[
+    \E\left[
         \frac{Y}{p(x)}
         \Bigl(
-        r - \nabla R^\star\Bigl(R'(q)-\eta\,\tfrac{T_x\,Y}{p(x)}\Bigr)
+        p_\star - \nabla R^\star\Bigl(R'(q)-\eta\,\tfrac{T_x\,Y}{p(x)}\Bigr)
         \Bigr)
         \,\Big|\, X = x
-        \Biggr]
+        \right]
     \\
      & =
     \frac{1}{p(x)}
-    \E\Biggl[
-        Y \Bigl(
-        r - \exp\Bigl(R'(q)-\eta\,\tfrac{T_x\,Y}{p(x)}\Bigr)
+    \E\left[
+        f(x) \Bigl(
+        p_\star - \exp\Bigl(R'(q)-\eta\,\tfrac{T_x\,f(x)}{p(x)}\Bigr)
         \Bigr)
-        \,\Big|\, X = x
-        \Biggr]
+        \right]
     \\
      & =
     \frac{1}{p(x)}
     \left(
-    f(x)r -
-    \E\Biggl[
-        Y
-        \exp\Bigl(R'(q)- \tfrac{\eta}{p(x)} Y T_x\Bigr)
-        \,\Big|\, X = x
-        \Biggr]
+    \E[f(x) p_\star] -
+    \E\left[
+            f(x)
+            \exp(R'(q)- \tfrac{\eta}{p(x)} f(x) T_x)
+            \right]
+    \right)
+    \\
+     & =
+    \frac{1}{p(x)}
+    \left(
+    \E[f(x) p_\star] -
+    \E\left[
+            f(x)q
+            \exp(- \tfrac{\eta}{p(x)} f(x) T_x)
+            \right]
     \right)
 \end{align*}
 we want to solve for $T_x$ such that the gradient is zero.
 Therefore, for coordinate $z \in \cC$ we have
 \begin{align*}
-    \E\Biggl[
-        Y
-        \exp\Bigl(R'(q)_z - \tfrac{\eta}{p(x)} Y T_{x,z}\Bigr)
-        \,\Big|\, X = x
-        \Biggr]
+    \E\left[
+        f(x) q_z
+        \exp\Bigl(- \tfrac{\eta}{p(x)} f(x) T_{x,z}\Bigr)
+        \right]
      & =
-    f(x)r_z \,,
+    \E[f(x) p_{\star, z}]
+    = \PP(x_\star = z) \E[f(x)| x_\star = z]\,,
 \end{align*}
-which is equivalent to
+which means we need to set $T_{x,z}$ such that the following equation holds
 \begin{align*}
-    \sum_{x' \in \cC}
-    p(x')
-    f(x')
-    \exp\Bigl(R'(q)_z - \tfrac{\eta}{p(x)} f(x') T_{x,z}\Bigr)
+    \E\left[
+        f(x)
+        \exp\Bigl(- \tfrac{\eta}{p(x)} f(x) T_{x,z}\Bigr)
+        \right]
      & =
-    f(x)r_z               \\
-    \Leftrightarrow
-    \sum_{x' \in \cC}
-    p(x')
-    f(x')
-    \exp\Bigl(-\tfrac{\eta}{p(x)} f(x') T_{x,z}\Bigr)
-     & =
-    \exp(-R'(q)_z)f(x)r_z \\
+    \tfrac{\PP(x_\star = z)}{q_z} \E[f(x)| x_\star = z]\,
+\end{align*}
+while
+\begin{align*}
+    T_{x,z} = 0 \quad \text{then } \E\left[
+        f(x)
+        \exp\Bigl(- \tfrac{\eta}{p(x)} f(x) T_{x,z}\Bigr)
+        \right]
+     & = \E[f(x)]\, \\
+    \text{and }\quad T_{x,z} \to \infty \quad \text{then } \E\left[
+        f(x)
+        \exp\Bigl(- \tfrac{\eta}{p(x)} f(x) T_{x,z}\Bigr)
+        \right]
+     & \to 0\,.
 \end{align*}
 
 
